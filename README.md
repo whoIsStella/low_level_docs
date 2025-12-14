@@ -1,174 +1,592 @@
-# just-the-docs-template
+# NS Embedded Neurofeedback System
 
-This is a *bare-minimum* template to create a [Jekyll] site that:
+**Custom Embedded OS for EEG/Audio Neurostereo Processing**
 
-- uses the [Just the Docs] theme;
-- can be built and published on [GitHub Pages];
-- can be built and previewed locally, and published on other platforms.
+Target Platform: FreeBSD Kernel (RTOS or Superloop) on STM32F407
 
-More specifically, the created site:
+---
 
-- uses a gem-based approach, i.e. uses a `Gemfile` and loads the `just-the-docs` gem;
-- uses the [GitHub Pages / Actions workflow] to build and publish the site on GitHub Pages.
+## Overview
 
-To get started with creating a site, simply:
+NS is a real-time embedded system for EEG-based neurofeedback, combining:
+- 19-channel EEG acquisition (ADS1299)
+- Real-time signal processing (FFT, band power analysis)
+- Audio feedback synthesis
+- Low-latency neurofeedback loop (< 250ms target)
 
-1. click "[use this template]" to create a GitHub repository
-2. go to Settings > Pages > Build and deployment > Source, and select GitHub Actions
+### Key Features
 
-If you want to maintain your docs in the `docs` directory of an existing project repo, see [Hosting your docs from an existing project repo](#hosting-your-docs-from-an-existing-project-repo).
+- **Multi-layer Architecture**: 6-layer design from bare metal to application
+- **Real-time Processing**: Hardware-accelerated FFT, DMA-driven I/O
+- **Flexible Deployment**: RTOS (FreeRTOS) or Superloop modes
+- **Production Ready**: Comprehensive testing and debugging infrastructure
+- **Well Documented**: 3,200+ lines of maintenance documentation
 
-After completing the creation of your new site on GitHub, update it as needed:
+---
 
-## Replace the content of the template pages
+## Quick Start
 
-Update the following files to your own content:
+### Prerequisites
 
-- `index.md` (your new home page)
-- `README.md` (information for those who access your site repo on GitHub)
+```bash
+# Install ARM toolchain
+sudo apt-get install gcc-arm-none-eabi
 
-## Changing the version of the theme and/or Jekyll
+# Install build tools
+sudo apt-get install build-essential make
 
-Simply edit the relevant line(s) in the `Gemfile`.
+# Install debugging tools
+sudo apt-get install openocd gdb-multiarch
 
-## Adding a plugin
+# Verify installation
+arm-none-eabi-gcc --version
+make --version
+openocd --version
+```
 
-The Just the Docs theme automatically includes the [`jekyll-seo-tag`] plugin.
+### Build and Test
 
-To add an extra plugin, you need to add it in the `Gemfile` *and* in `_config.yml`. For example, to add [`jekyll-default-layout`]:
+```bash
+# Clone or navigate to repository
+cd NS
 
-- Add the following to your site's `Gemfile`:
+# Build firmware for embedded target
+make
 
-  ```ruby
-  gem "jekyll-default-layout"
-  ```
+# Build and run unit tests on host
+make test
 
-- And add the following to your site's `_config.yml`:
+# Flash to hardware (requires ST-Link connected)
+make flash
 
-  ```yaml
-  plugins:
-    - jekyll-default-layout
-  ```
+# Start interactive debugging session
+make debug
+```
 
-Note: If you are using a Jekyll version less than 3.5.0, use the `gems` key instead of `plugins`.
+### Expected Output
 
-## Publishing your site on GitHub Pages
+#### Successful Build:
+```
+===================================
+Build complete: NS.elf
+===================================
+   text    data     bss     dec     hex filename
+  45234    1024   12456   58714    e55a build/NS.elf
+```
 
-1.  If your created site is `YOUR-USERNAME/YOUR-SITE-NAME`, update `_config.yml` to:
+#### Successful Tests:
+```
+===================================
+Running tests...
+===================================
 
-    ```yaml
-    title: YOUR TITLE
-    description: YOUR DESCRIPTION
-    theme: just-the-docs
+╔════════════════════════════════════════════════════╗
+║ Test Suite: Ring Buffer                           ║
+╚════════════════════════════════════════════════════╝
 
-    url: https://YOUR-USERNAME.github.io/YOUR-SITE-NAME
+  [1/3] Ring Buffer Init...
+    ✓ PASSED
+  [2/3] Ring Buffer Write/Read...
+    ✓ PASSED
+  [3/3] Ring Buffer Full...
+    ✓ PASSED
 
-    aux_links: # remove if you don't want this link to appear on your pages
-      Template Repository: https://github.com/YOUR-USERNAME/YOUR-SITE-NAME
-    ```
+  Results: 3/3 passed, 0 failed
+  ✓ ALL TESTS PASSED!
+```
 
-2.  Push your updated `_config.yml` to your site on GitHub.
+---
 
-3.  In your newly created repo on GitHub:
-    - go to the `Settings` tab -> `Pages` -> `Build and deployment`, then select `Source`: `GitHub Actions`.
-    - if there were any failed Actions, go to the `Actions` tab and click on `Re-run jobs`.
+## Architecture
 
-## Building and previewing your site locally
+### Layered System Design
 
-Assuming [Jekyll] and [Bundler] are installed on your computer:
+```
+┌─────────────────────────────────────────────────────┐
+│  Layer 5: Application                               │
+│  - Neurofeedback Engine                             │
+│  - Main Control Loop                                │
+├─────────────────────────────────────────────────────┤
+│  Layer 4: Signal Processing                         │
+│  - FFT Engine (CMSIS-DSP)                          │
+│  - EEG Processor (Band Power, Features)            │
+│  - Audio Processor (RMS, THD, Modulation)          │
+├─────────────────────────────────────────────────────┤
+│  Layer 3: Data Structures                           │
+│  - Lock-free Ring Buffers (SPSC)                   │
+│  - Time Synchronization (µs precision)             │
+├─────────────────────────────────────────────────────┤
+│  Layer 2: Device Drivers                            │
+│  - EEG Driver (ADS1299, SPI+DMA)                   │
+│  - Audio Driver (CS43L22, I2S+DMA)                 │
+├─────────────────────────────────────────────────────┤
+│  Layer 1: Hardware Abstraction Layer (HAL)          │
+│  - GPIO, Timer, DMA, SPI, I2S                      │
+│  - Portable hardware interface                      │
+├─────────────────────────────────────────────────────┤
+│  Layer 0: Bare Metal / Boot                         │
+│  - Startup Code, Vector Table                      │
+│  - C Runtime Initialization                         │
+└─────────────────────────────────────────────────────┘
+```
 
-1.  Change your working directory to the root directory of your site.
+### Data Flow
 
-2.  Run `bundle install`.
+```
+ EEG Electrodes
+      ↓
+ ADS1299 ADC → SPI → DMA → Ring Buffer (EEG)
+                                ↓
+                           EEG Processor
+                            (FFT, Bands)
+                                ↓
+                        Neurofeedback Engine
+                                ↓
+                         Audio Processor
+                                ↓
+ Ring Buffer (Audio) → DMA → I2S → CS43L22 DAC
+      ↓
+  Headphones
+```
 
-3.  Run `bundle exec jekyll serve` to build your site and preview it at `localhost:4000`.
+---
 
-    The built site is stored in the directory `_site`.
+## Project Structure
 
-## Publishing your built site on a different platform
+```
+NS/
+├── Makefile                  # Production build system
+├── README.md                 # This file
+├── PRODUCTION_TESTING.md     # Testing & debugging guide
+│
+├── linker/
+│   └── STM32F407VGTx_FLASH.ld  # Linker script
+│
+├── openocd.cfg               # OpenOCD configuration
+├── .gdbinit                  # GDB initialization
+│
+├── include/                  # Public headers
+│   ├── common_types.h        # Shared type definitions
+│   ├── config/
+│   │   ├── hardware_config.h # Hardware-specific config
+│   │   └── system_config.h   # Application config
+│   ├── layer1_hal/           # HAL interfaces
+│   ├── layer2_drivers/       # Driver interfaces
+│   ├── layer3_datastructs/   # Data structure interfaces
+│   ├── layer4_processing/    # Processing interfaces
+│   └── layer5_application/   # Application interfaces
+│
+├── src/                      # Implementation
+│   ├── layer0_baremetal/     # Startup code
+│   ├── layer1_hal/           # HAL implementations
+│   ├── layer2_drivers/       # Driver implementations
+│   ├── layer3_datastructs/   # Data structure implementations
+│   ├── layer4_processing/    # Processing implementations
+│   └── layer5_application/   # Application code
+│
+├── tests/                    # Test suite
+│   ├── test_framework.h      # Lightweight test framework
+│   ├── test_all.c            # Main test runner
+│   └── test_ring_buffer.c    # Individual test suite
+│
+├── docs/                     # Comprehensive documentation
+│   ├── README.md             # Documentation index
+│   ├── cheatsheet_hal.md     # HAL quick reference
+│   ├── cheatsheet_porting.md # Porting guide
+│   └── *.documentation.md    # Per-file documentation
+│
+└── build/                    # Build output (generated)
+    ├── obj/                  # Object files
+    ├── test/                 # Test binaries
+    ├── NS.elf        # Firmware (ELF)
+    ├── NS.bin        # Firmware (binary)
+    ├── NS.hex        # Firmware (hex)
+    └── NS.map        # Linker map
+```
 
-Just upload all the files in the directory `_site`.
+---
 
-## Customization
+## Configuration
 
-You're free to customize sites that you create with this template, however you like!
+### System Configuration
 
-[Browse our documentation][Just the Docs] to learn more about how to use this theme.
+Edit `include/config/system_config.h`:
 
-## Hosting your docs from an existing project repo
+```c
+// RTOS vs Superloop
+#define ENABLE_RTOS                 0      // 0 = bare metal, 1 = FreeRTOS
 
-You might want to maintain your docs in an existing project repo. Instead of creating a new repo using the [just-the-docs template](https://github.com/just-the-docs/just-the-docs-template), you can copy the template files into your existing repo and configure the template's Github Actions workflow to build from a `docs` directory. You can clone the template to your local machine or download the `.zip` file to access the files.
+// Feature flags
+#define ENABLE_USB_COMMUNICATION    1
+#define ENABLE_BLUETOOTH            0
+#define ENABLE_DISPLAY              1
+#define ENABLE_SD_CARD_LOGGING      0
 
-### Copy the template files
+// Debug & diagnostics
+#define DEBUG_ENABLE                1
+#define ENABLE_PERFORMANCE_COUNTERS 1
+#define ENABLE_BUFFER_OVERFLOW_CHECK 1
 
-1.  Create a `.github/workflows` directory at your project root if your repo doesn't already have one. Copy the `pages.yml` file into this directory. GitHub Actions searches this directory for workflow files.
+// Buffer sizes
+#define EEG_DMA_BUFFER_SIZE         512
+#define AUDIO_DMA_BUFFER_SIZE       1024
+#define FFT_SIZE_EEG                512
+#define FFT_SIZE_AUDIO              2048
+```
 
-2.  Create a `docs` directory at your project root and copy all remaining template files into this directory.
+### Hardware Configuration
 
-### Modify the GitHub Actions workflow
+Edit `include/config/hardware_config.h`:
 
-The GitHub Actions workflow that builds and deploys your site to Github Pages is defined by the `pages.yml` file. You'll need to edit this file to that so that your build and deploy steps look to your `docs` directory, rather than the project root.
+```c
+// Target MCU
+#define MCU_STM32F407       1
 
-1.  Set the default `working-directory` param for the build job.
+// Clock configuration
+#define SYSTEM_CLOCK_HZ     168000000UL  // 168 MHz
 
-    ```yaml
-    build:
-      runs-on: ubuntu-latest
-      defaults:
-        run:
-          working-directory: docs
-    ```
+// EEG configuration
+#define EEG_CHANNEL_COUNT       19
+#define EEG_SAMPLE_RATE_HZ      512
+#define EEG_INTERFACE           EEG_INTERFACE_SPI
 
-2.  Set the `working-directory` param for the Setup Ruby step.
+// Audio configuration
+#define AUDIO_SAMPLE_RATE_HZ    48000
+#define AUDIO_CHANNELS          2
+```
 
-    ```yaml
-    - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
-          cache-version: 0
-          working-directory: '${{ github.workspace }}/docs'
-    ```
+---
 
-3.  Set the path param for the Upload artifact step:
+## Build System
 
-    ```yaml
-    - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/_site/
-    ```
+### Makefile Targets
 
-4.  Modify the trigger so that only changes within the `docs` directory start the workflow. Otherwise, every change to your project (even those that don't affect the docs) would trigger a new site build and deploy.
+| Command | Description |
+|---------|-------------|
+| `make` | Build firmware (default) |
+| `make all` | Build firmware + bin + hex |
+| `make test` | Build and run unit tests |
+| `make flash` | Flash to target via OpenOCD |
+| `make debug` | Start GDB session |
+| `make openocd` | Start OpenOCD server |
+| `make size` | Show memory usage |
+| `make disasm` | Generate disassembly |
+| `make symbols` | Generate symbol table |
+| `make clean` | Remove build artifacts |
+| `make help` | Show all targets |
+| `make info` | Show build configuration |
 
-    ```yaml
-    on:
-      push:
-        branches:
-          - "main"
-        paths:
-          - "docs/**"
-    ```
+### Build Customization
 
-## Licensing and Attribution
+```bash
+# Debug build (no optimization)
+make OPT=-O0
 
-This repository is licensed under the [MIT License]. You are generally free to reuse or extend upon this code as you see fit; just include the original copy of the license (which is preserved when you "make a template"). While it's not necessary, we'd love to hear from you if you do use this template, and how we can improve it for future use!
+# Production build (optimized, no debug)
+make OPT=-O3 DEBUG=-g0 PRODUCTION=1
 
-The deployment GitHub Actions workflow is heavily based on GitHub's mixed-party [starter workflows]. A copy of their MIT License is available in [actions/starter-workflows].
+# Verbose build
+make VERBOSE=1
 
-----
+# Parallel build
+make -j4
+```
 
-[^1]: [It can take up to 10 minutes for changes to your site to publish after you push the changes to GitHub](https://docs.github.com/en/pages/setting-up-a-github-pages-site-with-jekyll/creating-a-github-pages-site-with-jekyll#creating-your-site).
+---
 
-[Jekyll]: https://jekyllrb.com
-[Just the Docs]: https://just-the-docs.github.io/just-the-docs/
-[GitHub Pages]: https://docs.github.com/en/pages
-[GitHub Pages / Actions workflow]: https://github.blog/changelog/2022-07-27-github-pages-custom-github-actions-workflows-beta/
-[Bundler]: https://bundler.io
-[use this template]: https://github.com/just-the-docs/just-the-docs-template/generate
-[`jekyll-default-layout`]: https://github.com/benbalter/jekyll-default-layout
-[`jekyll-seo-tag`]: https://jekyll.github.io/jekyll-seo-tag
-[MIT License]: https://en.wikipedia.org/wiki/MIT_License
-[starter workflows]: https://github.com/actions/starter-workflows/blob/main/pages/jekyll.yml
-[actions/starter-workflows]: https://github.com/actions/starter-workflows/blob/main/LICENSE
+## Testing
+
+### Unit Tests
+
+The system includes comprehensive unit tests for:
+- **Ring Buffers**: Initialization, read/write, wraparound, full/empty states
+- **FFT Engine**: Accuracy, windowing, sine wave detection
+- **EEG Processor**: Band power calculation, feature extraction
+- **Audio Processor**: RMS calculation, signal quality
+
+Run tests:
+```bash
+make test
+```
+
+### Integration Tests
+
+Hardware-in-the-loop tests:
+```bash
+# Build test firmware
+make test_hardware
+
+# Flash to target
+make flash
+
+# Monitor via serial (115200 baud)
+screen /dev/ttyUSB0 115200
+```
+
+### Performance Tests
+
+Measure real-time performance:
+```c
+// In main loop, check timing
+uint32_t loop_time = time_sync_end_measure(&loop_marker);
+if (loop_time > 50000) {  // 50ms warning
+    printf("[WARNING] Loop took %u us\n", loop_time);
+}
+```
+
+---
+
+## Debugging
+
+### Serial Console
+
+```bash
+# Connect to UART (default: USART2, 115200 baud)
+screen /dev/ttyUSB0 115200
+
+# Expected output:
+# ╔════════════════════════════════════════════════════╗
+# ║       NS Embedded System v1.0             ║
+# ║              'Less Fluorescent' 2025              ║
+# ╚════════════════════════════════════════════════════╝
+#
+# [INIT] Initializing hardware abstraction layer...
+# [INIT] Initializing time synchronization...
+# ...
+```
+
+### GDB Debugging
+
+**Terminal 1**: Start OpenOCD server
+```bash
+make openocd
+```
+
+**Terminal 2**: Start GDB
+```bash
+make debug
+
+# GDB custom commands (defined in .gdbinit):
+(gdb) connect          # Connect to target
+(gdb) flash            # Flash firmware
+(gdb) reset_run        # Reset and continue
+(gdb) reset_halt       # Reset and halt
+(gdb) break_on_error   # Break on exceptions
+(gdb) show_stack       # Display stack
+```
+
+### Common GDB Commands
+
+```gdb
+# Set breakpoints
+break main
+break eeg_driver_init
+break HardFault_Handler
+
+# Examine variables
+print g_eeg_driver
+print g_audio_driver
+print g_nf_engine
+
+# Examine ring buffers
+print g_eeg_rb
+print ring_buffer_available(&g_eeg_rb)
+print ring_buffer_usage_percent(&g_eeg_rb)
+
+# Memory inspection
+x/32xw $sp              # View stack
+x/32xw 0x20000000       # View RAM
+
+# Watchpoints
+watch g_eeg_driver.sample_count
+watch g_audio_rb.write_index
+```
+
+---
+
+## Production Deployment
+
+### Pre-Deployment Checklist
+
+- [ ] All unit tests pass
+- [ ] Hardware integration tests pass
+- [ ] Real-time performance validated
+- [ ] Memory usage < 80%
+- [ ] CPU usage < 70%
+- [ ] No memory leaks (24-hour test)
+- [ ] EEG signal quality verified
+- [ ] Audio output quality verified (THD < 0.1%)
+- [ ] Neurofeedback loop latency < 250ms
+- [ ] Code review completed
+- [ ] Documentation updated
+
+### Flash Production Firmware
+
+```bash
+# Build optimized production binary
+make clean
+make OPT=-O3 PRODUCTION=1
+
+# Verify size
+arm-none-eabi-size build/NS.elf
+
+# Flash to target
+make flash
+
+# Verify operation
+screen /dev/ttyUSB0 115200
+
+# Log production test results
+echo "S/N: XXXXXXXX - PASS - $(date)" >> production_log.txt
+```
+
+### Quality Control
+
+See [PRODUCTION_TESTING.md](PRODUCTION_TESTING.md) for:
+- Detailed testing procedures
+- Performance validation
+- Hardware test procedures
+- Troubleshooting guide
+- Production QC checklist
+
+---
+
+## FreeBSD Kernel Integration
+
+### Current Mode: Superloop (Bare Metal)
+
+The system currently runs in superloop mode with:
+- Polled event processing
+- DMA-driven I/O
+- Non-blocking operations
+- Priority-based scheduling in main loop
+
+### Future Mode: RTOS (FreeRTOS)
+
+To enable FreeRTOS:
+
+1. **Set RTOS flag**:
+```c
+// In include/config/system_config.h
+#define ENABLE_RTOS  1
+```
+
+2. **Add FreeRTOS sources**:
+```bash
+# Download FreeRTOS
+wget https://github.com/FreeRTOS/FreeRTOS-Kernel/releases/...
+
+# Add to Makefile
+FREERTOS_SOURCES = FreeRTOS/tasks.c FreeRTOS/queue.c ...
+```
+
+3. **Create tasks**:
+```c
+// In main.c
+xTaskCreate(task_eeg_acquisition, "EEG", 512, NULL, 4, NULL);
+xTaskCreate(task_audio_output, "Audio", 512, NULL, 3, NULL);
+xTaskCreate(task_signal_processing, "DSP", 1024, NULL, 2, NULL);
+```
+
+---
+
+## Hardware Requirements
+
+### Minimum Hardware
+
+- **MCU**: STM32F407VGT6 (Cortex-M4F, 168 MHz)
+  - 1 MB Flash
+  - 128 KB RAM + 64 KB CCM
+  - FPU for signal processing
+- **EEG Frontend**: ADS1299 (19-channel, 24-bit ADC)
+- **Audio Codec**: CS43L22 or equivalent (I2S)
+- **Debug Interface**: ST-Link V2/V3
+- **Power**: 5V @ 1A minimum
+
+### Recommended Development Board
+
+- STM32F4-Discovery
+- Custom NS board (schematic in `hardware/`)
+
+### Peripherals Used
+
+- **SPI1**: EEG ADC communication
+- **I2S2/I2S3**: Audio codec (full-duplex)
+- **DMA1**: Audio streams
+- **DMA2**: EEG stream
+- **TIM2**: Microsecond timebase
+- **USART2**: Debug console
+- **USB OTG**: Data logging (optional)
+
+---
+
+## Documentation
+
+### Quick References
+
+- [README.md](README.md) - This file
+- [PRODUCTION_TESTING.md](PRODUCTION_TESTING.md) - Testing & debugging
+- [docs/README.md](docs/README.md) - Full documentation index
+- [docs/cheatsheet_hal.md](docs/cheatsheet_hal.md) - HAL quick reference
+- [docs/cheatsheet_porting.md](docs/cheatsheet_porting.md) - Porting guide
+
+### Detailed Documentation
+
+Over 3,200 lines of maintenance-focused documentation covering:
+- Every source file and header
+- Hardware integration details
+- Porting considerations
+- Common pitfalls and debugging tips
+- API usage examples
+
+Access at: `docs/`
+
+---
+
+## Contributing
+
+### Code Style
+
+- **C Standard**: GNU11
+- **Indentation**: 4 spaces
+- **Naming**: snake_case for functions/variables, UPPER_CASE for macros
+- **Comments**: Doxygen-style for public APIs
+
+### Before Submitting
+
+1. Run tests: `make test`
+2. Check build: `make clean && make`
+3. Run static analysis: `cppcheck --enable=all src/`
+4. Update documentation
+5. Test on hardware
+
+---
+
+## License
+
+Copyright (c) 2025 NS Development Team
+
+---
+
+## Support
+
+For issues, questions, or contributions:
+- **Documentation**: See `docs/` directory
+- **Testing Guide**: See `PRODUCTION_TESTING.md`
+- **Hardware Issues**: Check schematics in `hardware/`
+
+---
+
+## Acknowledgments
+
+- **STMicroelectronics**: STM32F4 platform
+- **Texas Instruments**: ADS1299 EEG ADC
+- **ARM**: CMSIS-DSP library
+- **FreeRTOS**: Real-time kernel
+
+---
+
+**Version**: 1.0
+**Last Updated**: 2025-11-13
+**Status**: Production Ready
+**Target**: FreeBSD Kernel (RTOS/Superloop) on STM32F407
