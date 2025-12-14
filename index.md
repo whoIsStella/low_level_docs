@@ -1,5 +1,6 @@
 ---
-title: Home
+title: NS Documentation Index
+description: >**Your Guide to the NS Embedded Neurofeedback System**
 layout: home
 ---
 

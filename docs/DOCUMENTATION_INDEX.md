@@ -1,6 +1,6 @@
-# NS Complete Documentation Index
+# NS Documentation Index
 
-**Your Complete Guide to the NS Embedded Neurofeedback System**
+**Your Guide to the NS Embedded Neurofeedback System**
 
 Version: 1.0
 Last Updated: 2025-11-13

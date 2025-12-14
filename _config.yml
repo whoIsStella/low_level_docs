@@ -1,8 +1,38 @@
-title: Just the Docs Template
-description: A starter template for a Jeykll site using the Just the Docs theme!
+title: NS Documentation Index
+description: Your Guide to the NS Embedded Neurofeedback System
 theme: just-the-docs
 
-url: https://just-the-docs.github.io
+url: https://github.com/whoIsStella/low_level_docs
 
-aux_links:
-  Template Repository: https://github.com/just-the-docs/just-the-docs-template
+plugins:
+  - just-the-docs
+
+  navbar:
+    logo:
+      src: /assets/images/ns_logo.png
+      alt: NS Logo
+    links:
+      - title: Home
+        url: /
+      - title: Getting Started
+        url: /getting-started/getting_started.md
+      - title: System Architecture
+        url: /getting-started/ARCHITECTURE.md
+      - title: API Documentation
+        url: /getting-started/API_REFERENCE.md
+      - title: System Integration Guide
+        url: /system-integration/cheatsheet_hal.md
+        url: /system-integration/cheatsheet_porting.md
+        url: /system-integration/system_config.h.documation.md
+      - title: Layer 0 Bare Metal
+        url: /faq/
+      - title: Layer 1 HAL
+        url: /faq/
+      - title: Layer 2 Drivers
+        url: /faq/
+      - title: Layer 3 Services
+        url: /faq/
+      - title: Layer 4 Processing
+        url: /faq/
+      - title: Layer 5 Application Layer
+        url: /faq/
