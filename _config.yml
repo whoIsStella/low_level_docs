@@ -28,7 +28,7 @@ nav_sort: case_insensitive
 # Aux links (top right)
 aux_links:
   "NeuroStereo on GitHub":
-    - "//github.com/yourusername/neurosterseo"
+    - "//github.com/whoIsStella/low_level_docs"
 
 # Footer
 footer_content: "Copyright &copy; 2024 Less Fluorescent Inc. Distributed under MIT License."
@@ -84,3 +84,23 @@ exclude:
   - "*.bin"
   - "*.hex"
   - build/
+
+
+
+# ### For New Developers
+# 1. Start here → **[README.md](README.md)** - Quick start guide
+# 2. Then read → **[ARCHITECTURE.md](ARCHITECTURE.md)** - Understand the system design
+# 3. Reference → **[API_REFERENCE.md](API_REFERENCE.md)** - While coding
+# 4. Testing → **[PRODUCTION_TESTING.md](PRODUCTION_TESTING.md)** - Before deployment
+
+# ### For System Integrators
+# 1. Hardware → **[docs/cheatsheet_hal.md](docs/cheatsheet_hal.md)** - HAL quick reference
+# 2. Porting → **[docs/cheatsheet_porting.md](docs/cheatsheet_porting.md)** - Platform porting guide
+# 3. Build → **[Makefile](Makefile)** + **[setup.sh](setup.sh)** - Build system
+# 4. Debug → **[openocd.cfg](openocd.cfg)** + **[.gdbinit](.gdbinit)** - Debugging setup
+
+# ### For Maintenance Engineers
+# 1. Missing items → **[TODO.md](TODO.md)** - What needs to be done
+# 2. Troubleshooting → **[PRODUCTION_TESTING.md](PRODUCTION_TESTING.md)** - Common issues
+# 3. Module docs → **[docs/](docs/)** - Per-file documentation
+# 4. Testing → **[tests/](tests/)** - Test suite
